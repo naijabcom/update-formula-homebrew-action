@@ -90,9 +90,9 @@ begin
 
   new_content = original_content.dup
 
-  new_content.gsub!(/(url\s+").*(")/, "\\1#{download_url}\\2")
-  new_content.gsub!(/(sha256\s+").*(")/, "\\1#{formula_sha}\\2")
-  new_content.gsub!(/(version\s+").*(")/, "\\1#{formula_release_tag}\\2")
+  new_content.gsub(/(url\s+").*(")/, "\\1#{download_url}\\2")
+  new_content.gsub(/(sha256\s+").*(")/, "\\1#{formula_sha}\\2")
+  new_content.gsub(/(version\s+").*(")/, "\\1#{formula_release_tag}\\2")
 
   logger.info new_content
 
