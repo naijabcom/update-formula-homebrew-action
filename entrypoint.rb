@@ -79,7 +79,7 @@ begin
   formula_name = formula_name.gsub("Formula/", "")
 
   formula_desc = repo[:description]
-  
+
   formula_proj = repo[:html_url]
 
   formula_sha = options[:sha256]
@@ -88,20 +88,11 @@ begin
 
   formula_release_tag = latest_release.tag_name
 
-  new_content = 
-"class #{formula_name.capitalize()} < Formula
-  desc \"#{formula_desc}\"
-  homepage \"#{formula_proj}\"
-  url \"#{download_url}\"
-  sha256 \"#{formula_sha}\"
-  license \"#{formula_license}\"
-  version \"#{formula_release_tag}\"
+  new_content = original_content.dup
 
-  def install
-    bin.install \"#{formula_name}\"
-  end
-end
-"
+  new_content.gsub!(/(url\s+").*(")/, "\\1#{download_url}\\2")
+  new_content.gsub!(/(sha256\s+").*(")/, "\\1#{formula_sha}\\2")
+  new_content.gsub!(/(version\s+").*(")/, "\\1#{formula_release_tag}\\2")
 
   logger.info new_content
 
@@ -109,7 +100,7 @@ end
 
   commit_message = (options[:message].nil? || options[:message].empty?) ? "Update #{repo.name} to #{latest_release.tag_name}" : options[:message]
   logger.info commit_message
-  
+
   client.update_contents(options[:tap],
                           options[:formula],
                           commit_message,
