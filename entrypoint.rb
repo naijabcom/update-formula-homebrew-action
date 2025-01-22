@@ -74,49 +74,48 @@ begin
   raw_original_content = client.contents(options[:tap], path: options[:formula]).content
   original_content = Base64.decode64(raw_original_content)
 
-  formula_name = options[:formula]
-  formula_name = formula_name.chomp(".rb")
-  formula_name = formula_name.gsub("Formula/", "")
+  # Extract the current sha256 value from the original content
+  current_sha256 = original_content.match(/sha256\s+"(.*)"/)[1]
 
-  formula_desc = repo[:description]
-  
-  formula_proj = repo[:html_url]
+  # Proceed only if the sha256 value has changed
+  if current_sha256 != options[:sha256]
+    formula_name = options[:formula]
+    formula_name = formula_name.chomp(".rb")
+    formula_name = formula_name.gsub("Formula/", "")
 
-  formula_sha = options[:sha256]
+    formula_desc = repo[:description]
 
-  formula_license = repo[:license][:spdx_id]
+    formula_proj = repo[:html_url]
 
-  formula_release_tag = latest_release.tag_name
+    formula_sha = options[:sha256]
 
-  new_content = 
-"class #{formula_name.capitalize()} < Formula
-  desc \"#{formula_desc}\"
-  homepage \"#{formula_proj}\"
-  url \"#{download_url}\"
-  sha256 \"#{formula_sha}\"
-  license \"#{formula_license}\"
-  version \"#{formula_release_tag}\"
+    formula_license = repo[:license][:spdx_id]
 
-  def install
-    bin.install \"#{formula_name}\"
+    formula_release_tag = latest_release.tag_name
+
+    new_content = original_content.dup
+
+    new_content.sub!(/(url\s+").*(")/, "\\1#{download_url}\\2")
+    new_content.sub!(/(sha256\s+").*(")/, "\\1#{formula_sha}\\2")
+    new_content.sub!(/(version\s+").*(")/, "\\1#{formula_release_tag}\\2")
+
+    logger.info new_content
+
+    blob_sha = client.contents(options[:tap], path: options[:formula]).sha
+
+    commit_message = (options[:message].nil? || options[:message].empty?) ? "Update #{repo.name} to #{latest_release.tag_name}" : options[:message]
+    logger.info commit_message
+
+    client.update_contents(options[:tap],
+                            options[:formula],
+                            commit_message,
+                            blob_sha,
+                            new_content)
+
+    logger.info "Update formula and push commit completed!"
+  else
+    logger.info "No changes in sha256 value. Skipping commit."
   end
-end
-"
-
-  logger.info new_content
-
-  blob_sha = client.contents(options[:tap], path: options[:formula]).sha
-
-  commit_message = (options[:message].nil? || options[:message].empty?) ? "Update #{repo.name} to #{latest_release.tag_name}" : options[:message]
-  logger.info commit_message
-  
-  client.update_contents(options[:tap],
-                          options[:formula],
-                          commit_message,
-                          blob_sha,
-                          new_content)
-
-  logger.info "Update formula and push commit completed!"
 rescue => e
   logger.fatal(e)
   exit 1
